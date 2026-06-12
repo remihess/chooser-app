@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Chooser PWA</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    /* --- 1. CSS VARIABLEN (Zentrales Design-System) --- */
+    :root {
+      --bg-color1: #0f172a;
+      --bg-color2: #1e293b;
+      --bg-direction: to bottom right;
+      --card-bg: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-color: #3b82f6;
+      --accent-hover: #2563eb;
+      --winner-color: #10b981;
+      --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+      --border-radius: 12px;
+      --transition-speed: 0.3s;
+    }
+
+    /* --- 2. GLOBAL RESET & TYPOGRAFIE --- */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(var(--bg-direction), var(--bg-color1), var(--bg-color2));
+      background-size: 200% 200%;
+      animation: gradientMove 15s ease infinite;
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden; /* Verhindert Scrollen in der App */
+      user-select: none; /* Verhindert unbeabsichtigtes Markieren von Text beim Berühren */
+      -webkit-user-select: none;
+      touch-action: none; /* Blockiert Doppeltipp-Zoom und Wisch-Gesten systemweit */
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* --- 3. LAYOUT & NAVIGATION --- */
+    nav {
+      position: absolute;
+      top: 60px;
+      left: 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 15px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    nav button {
+      background: transparent;
+      background-color: rgba(30, 41, 59, 0.4);
+      backdrop-filter: blur(8px);
+      color: var(--text-muted);
+      border: 2px solid transparent;
+      padding: 12px 24px;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all var(--transition-speed) ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    nav button:hover {
+      color: var(--text-main);
+      background-color: rgba(255,255,255,0.05);
+    }
+
+    nav button.active {
+      color: var(--text-main);
+      border-color: var(--accent-color);
+      background-color: rgba(59, 130, 246, 0.1);
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* --- 4. EINSTELLUNGEN & MODAL --- */
+    .settings-btn {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      z-index: 20;
+      padding: 5px;
+      transition: color var(--transition-speed);
+    }
+
+    .settings-btn:hover {
+      color: var(--text-main);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(5px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .modal-content {
+      background-color: var(--card-bg);
+      padding: 25px;
+      border-radius: var(--border-radius);
+      width: 90%;
+      max-width: 350px;
+      box-shadow: var(--shadow);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 2rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .mode-group, .numbers-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .mode-btn, .num-btn {
+      flex: 1;
+      background: rgba(0,0,0,0.2);
+      border: 2px solid transparent;
+      border-radius: 8px;
+      padding: 10px 0;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      transition: all var(--transition-speed);
+    }
+
+    .mode-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .mode-btn.active, .num-btn.active {
+      border-color: var(--accent-color);
+      background: rgba(59, 130, 246, 0.1);
+      color: var(--text-main);
+    }
+
+    .modal-body label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .color-picker-group {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .color-picker-group input[type="color"] {
+      flex: 1;
+      height: 32px;
+      border: 2px solid var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    /* --- STATUS OVERLAY --- */
+    .status-overlay {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      pointer-events: none; /* Blockiert keine Finger-Touches! */
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-main);
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(4px);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 1rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .dir-group {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+    }
+
+    .dir-btn {
+      flex: 1;
+      background: rgba(0,0,0,0.2);
+      border: 2px solid transparent;
+      border-radius: 8px;
+      padding: 10px 0;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      transition: border-color 0.3s;
+    }
+
+    .dir-btn.active {
+      border-color: var(--accent-color);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    .dir-btn svg { width: 24px; height: 24px; }
+    .dir-btn svg rect { stroke: var(--text-muted); }
+    .dir-btn svg line { stroke: var(--text-muted); }
+    .dir-btn.active svg rect { stroke: var(--accent-color); }
+    .dir-btn.active svg line { stroke: var(--accent-color); stroke-width: 3; }
+    
+
+    /* --- 5. TABS --- */
+    .tab-content {
+      display: none; /* Standardmäßig versteckt */
+      flex: 1;
+      flex-direction: column;
+    }
+
+    .tab-content.active {
+      display: flex; /* Flexbox für den aktiven Tab */
+      animation: fadeIn 0.4s ease-out forwards;
+    }
+
+    .main-card {
+      background-color: var(--card-bg);
+      border-radius: var(--border-radius);
+      box-shadow: var(--shadow);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      height: 100%;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- 6. SPEZIFISCHES UI: TAB 1 (CHOOSER) --- */
+    #touch-area {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      touch-action: none; /* WICHTIG: Blockiert Browser-Zoom/Scroll für reine Touch-Events */
+    }
+
+    /* Der Finger-Kreis */
+    .touch-ring {
+      position: absolute;
+      width: 110px;
+      height: 110px;
+      border: 8px solid #ffffff;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none; /* Klicks gehen durch den Kreis hindurch */
+      transition: opacity 0.3s ease, border-color 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+      box-shadow: 0 0 10px rgba(255,255,255,0.3);
+    }
+
+    /* Puls-Animation während des Countdowns */
+    .touch-ring.pulse {
+      animation: pulse-anim 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse-anim {
+      0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      50% { transform: translate(-50%, -50%) scale(1.3); opacity: 0.6; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+
+    /* Text im Ring (für Ranking) */
+    .touch-ring::after {
+      content: attr(data-rank);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #ffffff;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    /* Status-Klassen für das Endergebnis */
+    .touch-ring.winner {
+      background-color: rgba(16, 185, 129, 0.4); /* Grünliche Füllung */
+      border-color: var(--winner-color);
+      box-shadow: 0 0 30px var(--winner-color);
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    .touch-ring.loser {
+      opacity: 0; /* Verlierer verschwinden */
+    }
+
+    .touch-ring.show-rank::after {
+      opacity: 1;
+    }
+
+    /* Basis für Team-Mitglieder (Farben werden per JS injiziert) */
+    .touch-ring.team-member {
+      transform: translate(-50%, -50%) scale(1.2);
+      opacity: 1;
+    }
+
+    /* --- 7. SPEZIFISCHES UI: TAB 2 (DREHSCHEIBE) --- */
+    #tab-wheel {
+      align-items: center;
+      justify-content: center;
+      touch-action: none; /* Blockiert Wischen */
+    }
+
+    .wheel-container {
+      width: 250px;
+      height: 250px;
+      border-radius: 50%;
+      border: 8px solid var(--accent-color);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow);
+    }
+
+    .wheel-arrow {
+      width: 24px;
+      height: 110px;
+      position: absolute;
+      bottom: 50%;
+      transform-origin: 50% 100%;
+      /* Sorgt für realistisches Auslaufen der Drehung über 4 Sekunden */
+      transition: transform 4s cubic-bezier(0.1, 0.9, 0.2, 1);
+    }
+
+    .wheel-arrow svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+    }
+    
+    .wheel-center {
+      width: 20px;
+      height: 20px;
+      background-color: var(--text-main);
+      border-radius: 50%;
+      position: absolute;
+      z-index: 2;
+    }
+  </style>
+</head>
+<body>
+
+  <button class="settings-btn" onclick="openSettings()">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+    </svg>
+  </button>
+
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Einstellungen</h2>
+        <button onclick="closeSettings()" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label>Modus:</label>
+        <div class="mode-group">
+          <button class="mode-btn active" onclick="setMode('single', this)" title="Einzel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </button>
+          <button class="mode-btn" onclick="setMode('team', this)" title="Teams">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 00-3-3.87"></path><path d="M16 3.13a4 4 0 010 7.75"></path></svg>
+          </button>
+          <button class="mode-btn" onclick="setMode('rank', this)" title="Ranking">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="9" width="4" height="15"></rect><rect x="4" y="14" width="4" height="10"></rect><rect x="16" y="12" width="4" height="12"></rect></svg>
+          </button>
+        </div>
+
+        <div id="numbers-container">
+          <label>Anzahl (Gewinner / Teams):</label>
+          <div class="numbers-group">
+            <button class="num-btn active" onclick="setCount(1, this)">1</button>
+            <button class="num-btn" onclick="setCount(2, this)">2</button>
+            <button class="num-btn" onclick="setCount(3, this)">3</button>
+            <button class="num-btn" onclick="setCount(4, this)">4</button>
+            <button class="num-btn" onclick="setCount(5, this)">5</button>
+          </div>
+        </div>
+        
+        <label>Hintergrundfarben:</label>
+        <div class="color-picker-group">
+          <input type="color" id="setting-color1" value="#0f172a">
+          <input type="color" id="setting-color2" value="#1e293b">
+        </div>
+
+        <label>Farbverlauf-Richtung:</label>
+        <div class="dir-group">
+          <!-- Vertikal -->
+          <button class="dir-btn" onclick="setDirection('to right', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2" /><line x1="12" y1="2" x2="12" y2="22" /></svg>
+          </button>
+          <!-- Horizontal -->
+          <button class="dir-btn" onclick="setDirection('to bottom', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2" /><line x1="6" y1="12" x2="18" y2="12" /></svg>
+          </button>
+          <!-- Diagonal nach Unten-Rechts -->
+          <button class="dir-btn active" onclick="setDirection('to bottom right', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2" /><line x1="6" y1="2" x2="18" y2="22" /></svg>
+          </button>
+          <!-- Diagonal nach Oben-Rechts -->
+          <button class="dir-btn" onclick="setDirection('to top right', this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="6" y="2" width="12" height="20" rx="2" /><line x1="6" y1="22" x2="18" y2="2" /></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav>
+    <button onclick="switchTab('tab-chooser', this)" class="active" title="Chooser">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+    </button>
+    <button onclick="switchTab('tab-wheel', this)" title="Drehscheibe">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 2v20"></path><path d="M2 12h20"></path><path d="M4.93 4.93l14.14 14.14"></path><path d="M4.93 19.07L19.07 4.93"></path></svg>
+    </button>
+  </nav>
+
+  <main>
+    <!-- Status Anzeige Overlay -->
+    <div id="status-overlay" class="status-overlay"></div>
+
+    <div id="tab-chooser" class="tab-content active">
+      <div id="touch-area"></div>
+    </div>
+
+    <div id="tab-wheel" class="tab-content">
+      <div class="wheel-container">
+        <div class="wheel-arrow" id="wheel-arrow">
+          <svg viewBox="0 0 24 100" preserveAspectRatio="none">
+            <path d="M12 0 C16 5 22 85 22 92 C22 98 16 100 12 100 C8 100 2 98 2 92 C2 85 8 5 12 0 Z" fill="var(--winner-color)"/>
+          </svg>
+        </div>
+        <div class="wheel-center"></div>
+      </div>
+      <p style="margin-top: 40px; color: var(--text-muted);">Auf den Bildschirm tippen zum Drehen</p>
+    </div>
+  </main>
+
+  <script>
+    /* =========================================
+       1. GLOBALER APP-STATE
+       ========================================= */
+    const AppState = {
+      touches: new Map(),       // Speichert HTML-Elemente zu Touch-IDs
+      idleTimeout: null,        // 2-Sekunden Timer
+      pulseInterval: null,      // Intervall für die 3 Sekunden Pulse
+      pulseCount: 0,            // Zählt die Puls-Schläge
+      isFinished: false,        // Verhindert Neustart während das Ergebnis angezeigt wird
+      winnersCount: 1,          // Anzahl der zu ziehenden Gewinner
+      mode: 'single'            // 'single' oder 'team'
+    };
+
+    /* =========================================
+       2. NAVIGATION / TAB-LOGIK
+       ========================================= */
+    function switchTab(tabId, buttonElement) {
+      // 1. Alle Tabs verstecken
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      // 2. Alle Buttons inaktiv setzen
+      document.querySelectorAll('nav button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      // 3. Gewählten Tab & Button aktivieren
+      document.getElementById(tabId).classList.add('active');
+      buttonElement.classList.add('active');
+    }
+
+    /* =========================================
+       2b. EINSTELLUNGEN-LOGIK
+       ========================================= */
+    function openSettings() { document.getElementById('settings-modal').classList.add('open'); }
+    function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+
+    // Aktualisiert das Status-Overlay
+    function updateStatusOverlay() {
+      const overlay = document.getElementById('status-overlay');
+      const numContainer = document.getElementById('numbers-container');
+      let icon = '';
+      
+      if (AppState.mode === 'single') {
+        icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>`;
+        overlay.innerHTML = `${icon} <span>${AppState.winnersCount}</span>`;
+        numContainer.style.display = 'block';
+      } else if (AppState.mode === 'team') {
+        icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`;
+        overlay.innerHTML = `${icon} <span>${AppState.winnersCount}</span>`;
+        numContainer.style.display = 'block';
+      } else if (AppState.mode === 'rank') {
+        icon = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="9" width="4" height="15"></rect><rect x="4" y="14" width="4" height="10"></rect><rect x="16" y="12" width="4" height="12"></rect></svg>`;
+        overlay.innerHTML = `${icon} <span>Ranking</span>`;
+        numContainer.style.display = 'none';
+      }
+    }
+
+    function setMode(mode, btnElement) {
+      AppState.mode = mode;
+      document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+      if(btnElement) btnElement.classList.add('active');
+      updateStatusOverlay();
+      saveSettings();
+    }
+
+    function setCount(num, btnElement) {
+      if (num > 5) num = 5; // Sicherheits-Limit
+      AppState.winnersCount = num;
+      document.querySelectorAll('.num-btn').forEach(btn => btn.classList.remove('active'));
+      if(btnElement) btnElement.classList.add('active');
+      updateStatusOverlay();
+      saveSettings();
+    }
+
+    // Hintergrundfarben live anwenden
+    function updateColors() {
+      document.documentElement.style.setProperty('--bg-color1', document.getElementById('setting-color1').value);
+      document.documentElement.style.setProperty('--bg-color2', document.getElementById('setting-color2').value);
+      saveSettings();
+    }
+    document.getElementById('setting-color1').addEventListener('input', updateColors);
+    document.getElementById('setting-color2').addEventListener('input', updateColors);
+
+    // Verlauf-Richtung speichern
+    function setDirection(dir, btnElement) {
+      document.documentElement.style.setProperty('--bg-direction', dir);
+      document.querySelectorAll('.dir-btn').forEach(btn => btn.classList.remove('active'));
+      if(btnElement) btnElement.classList.add('active');
+      saveSettings();
+    }
+
+    // --- Einstellungen Speichern / Laden ---
+    function saveSettings() {
+      const settings = {
+        mode: AppState.mode,
+        winnersCount: AppState.winnersCount,
+        color1: document.getElementById('setting-color1').value,
+        color2: document.getElementById('setting-color2').value,
+        direction: document.documentElement.style.getPropertyValue('--bg-direction') || 'to bottom right'
+      };
+      localStorage.setItem('chooserSettings', JSON.stringify(settings));
+    }
+
+    function loadSettings() {
+      const saved = localStorage.getItem('chooserSettings');
+      if (saved) {
+        try {
+          const settings = JSON.parse(saved);
+          const modeBtn = document.querySelector(`.mode-btn[onclick*="${settings.mode}"]`);
+          if (modeBtn) setMode(settings.mode, modeBtn);
+          
+          let wCount = settings.winnersCount;
+          if (wCount > 5) wCount = 5; // Korrektur für alte Speicherstände
+          const numBtn = document.querySelector(`.num-btn[onclick*="(${wCount},"]`);
+          if (numBtn) setCount(wCount, numBtn);
+
+          document.getElementById('setting-color1').value = settings.color1 || '#0f172a';
+          document.getElementById('setting-color2').value = settings.color2 || '#1e293b';
+          document.documentElement.style.setProperty('--bg-color1', document.getElementById('setting-color1').value);
+          document.documentElement.style.setProperty('--bg-color2', document.getElementById('setting-color2').value);
+
+          const dirBtn = document.querySelector(`.dir-btn[onclick*="${settings.direction}"]`);
+          if (dirBtn) setDirection(settings.direction, dirBtn);
+        } catch(e) {}
+      }
+      updateStatusOverlay();
+    }
+
+    /* =========================================
+       3. CHOOSER APP-LOGIK
+       ========================================= */
+    const touchArea = document.getElementById('touch-area');
+
+    // Erstellt oder aktualisiert einen Touch-Ring auf dem Bildschirm
+    function renderRing(id, x, y) {
+      let ring = AppState.touches.get(id);
+      if (!ring) {
+        ring = document.createElement('div');
+        ring.className = 'touch-ring';
+        touchArea.appendChild(ring);
+        AppState.touches.set(id, ring);
+      }
+      ring.style.left = `${x}px`;
+      ring.style.top = `${y}px`;
+    }
+
+    // Entfernt einen Ring anhand der Touch-ID
+    function removeRing(id) {
+      const ring = AppState.touches.get(id);
+      if (ring) {
+        ring.remove();
+        AppState.touches.delete(id);
+      }
+    }
+
+    // Setzt alle Timer und Animationen zurück
+    function resetChooser() {
+      clearTimeout(AppState.idleTimeout);
+      clearInterval(AppState.pulseInterval);
+      AppState.pulseCount = 0;
+      AppState.isFinished = false;
+
+      // Optischer Reset aller existierenden Ringe und dynamischen Farben
+      AppState.touches.forEach(ring => {
+        ring.classList.remove('pulse', 'winner', 'loser', 'team-member', 'show-rank');
+        ring.removeAttribute('data-rank');
+        ring.style.borderColor = '';
+        ring.style.boxShadow = '';
+        ring.style.backgroundColor = '';
+      });
+    }
+
+    // Startet den 2-Sekunden-Timer (wird bei jeder Finger-Änderung aufgerufen)
+    function startIdleTimer() {
+      if (AppState.touches.size === 0) return; // Nichts zu tun ohne Finger
+      
+      // Sicherheits-Check: Nicht starten, wenn zu wenige Finger drauf sind
+      if (AppState.mode === 'rank' && AppState.touches.size < 2) return;
+      if (AppState.mode !== 'rank' && AppState.touches.size <= AppState.winnersCount) return;
+
+      AppState.idleTimeout = setTimeout(() => {
+        startCountdown();
+      }, 2000);
+    }
+
+    // Startet das Pulsieren (Countdown)
+    function startCountdown() {
+      AppState.pulseCount = 0;
+
+      // Alle Ringe fangen an zu pulsieren
+      AppState.touches.forEach(ring => ring.classList.add('pulse'));
+
+      // Taktung: 1 Mal pro Sekunde für 3 Sekunden
+      AppState.pulseInterval = setInterval(() => {
+        AppState.pulseCount++;
+        
+        // Nach dem 2. Puls -> Ergebnis (jetzt ein Puls früher)
+        if (AppState.pulseCount >= 2) {
+          executeSelection();
+        }
+      }, 1000);
+    }
+
+    // Zufällige Auswahl und Beendigung
+    function executeSelection() {
+      clearInterval(AppState.pulseInterval);
+      AppState.isFinished = true;
+
+      // 1. Vibration auslösen (Hinweis: Safari iOS unterstützt die Vibration API webseitig oft nicht nativ)
+      if (navigator.vibrate) {
+        navigator.vibrate(400); 
+      }
+
+      const touchIds = Array.from(AppState.touches.keys());
+      
+      // 2. Array mischen
+      const shuffled = [...touchIds].sort(() => 0.5 - Math.random());
+      
+      if (AppState.mode === 'single') {
+        const maxWinners = Math.min(AppState.winnersCount, touchIds.length);
+        const winnerIds = new Set(shuffled.slice(0, maxWinners));
+
+        // UI updaten: Verlierer ausblenden, Gewinner markieren
+        AppState.touches.forEach((ring, id) => {
+          ring.classList.remove('pulse');
+          if (winnerIds.has(id)) {
+            ring.classList.add('winner');
+          } else {
+            ring.classList.add('loser');
+          }
+        });
+      } else if (AppState.mode === 'team') {
+        // TEAM-Modus
+        const colors = [
+          { border: '#10b981', bg: 'rgba(16, 185, 129, 0.4)' }, // Grün
+          { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.4)' }, // Blau
+          { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.4)' }, // Bernstein
+          { border: '#ef4444', bg: 'rgba(239, 68, 68, 0.4)' },  // Rot
+          { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.4)' }, // Lila
+          { border: '#ec4899', bg: 'rgba(236, 72, 153, 0.4)' }  // Pink
+        ];
+
+        const teamsCount = Math.min(AppState.winnersCount, touchIds.length);
+        
+        shuffled.forEach((id, index) => {
+          const ring = AppState.touches.get(id);
+          ring.classList.remove('pulse');
+          ring.classList.add('team-member');
+          
+          const teamIndex = index % teamsCount;
+          ring.style.borderColor = colors[teamIndex].border;
+          ring.style.boxShadow = `0 0 30px ${colors[teamIndex].border}`;
+          ring.style.backgroundColor = colors[teamIndex].bg;
+        });
+      } else if (AppState.mode === 'rank') {
+        // RANKING-Modus
+        shuffled.forEach((id, index) => {
+          const ring = AppState.touches.get(id);
+          ring.classList.remove('pulse');
+          ring.classList.add('winner', 'show-rank');
+          ring.setAttribute('data-rank', index + 1);
+          
+          if (index === 0) {
+            ring.style.borderColor = '#fbbf24'; // Gold
+            ring.style.boxShadow = '0 0 30px #fbbf24';
+            ring.style.backgroundColor = 'rgba(251, 191, 36, 0.4)';
+          } else if (index === 1) {
+            ring.style.borderColor = '#94a3b8'; // Silber
+            ring.style.boxShadow = '0 0 30px #94a3b8';
+            ring.style.backgroundColor = 'rgba(148, 163, 184, 0.4)';
+          } else if (index === 2) {
+            ring.style.borderColor = '#b45309'; // Bronze
+            ring.style.boxShadow = '0 0 30px #b45309';
+            ring.style.backgroundColor = 'rgba(180, 83, 9, 0.4)';
+          }
+        });
+      }
+    }
+
+    // Zentrale Funktion zum Verarbeiten aller Touch-Events
+    function handleTouch(e) {
+      e.preventDefault(); // Verhindert native Gesten wie Swipe-to-back
+
+      const currentTouches = e.touches;
+
+      // Wenn das Ergebnis bereits angezeigt wird...
+      if (AppState.isFinished) {
+        // ...warten wir, bis ALLE Finger vom Display genommen wurden, bevor wir resetten.
+        if (currentTouches.length === 0) {
+          resetChooser();
+          touchArea.innerHTML = '';
+          AppState.touches.clear();
+          return;
+        }
+        
+        const currentTouchIds = new Set();
+        const rect = touchArea.getBoundingClientRect();
+
+        for (let i = 0; i < currentTouches.length; i++) {
+          const t = currentTouches[i];
+          currentTouchIds.add(t.identifier);
+          
+          // Position aktualisieren, sofern wir nicht im Ranking-Modus sind
+          if (AppState.mode !== 'rank' && AppState.touches.has(t.identifier)) {
+            const ring = AppState.touches.get(t.identifier);
+            ring.style.left = `${t.clientX - rect.left}px`;
+            ring.style.top = `${t.clientY - rect.top}px`;
+          }
+        }
+
+        // Finger entfernen, die angehoben wurden
+        AppState.touches.forEach((ring, id) => {
+          if (!currentTouchIds.has(id)) {
+            removeRing(id);
+          }
+        });
+
+        return; // Keine neuen Berechnungen während der Gewinneranzeige
+      }
+
+      // Timer nur bei neuen Fingern oder Loslassen abbrechen, nicht beim bloßen Bewegen
+      if (e.type !== 'touchmove') {
+        resetChooser();
+      }
+
+      const currentTouchIds = new Set();
+      const rect = touchArea.getBoundingClientRect();
+
+      // Finger hinzufügen / Position updaten
+      for (let i = 0; i < currentTouches.length; i++) {
+        const t = currentTouches[i];
+        currentTouchIds.add(t.identifier);
+        
+        // Relativ zum touchArea berechnen
+        const x = t.clientX - rect.left;
+        const y = t.clientY - rect.top;
+        
+        renderRing(t.identifier, x, y);
+      }
+
+      // Finger entfernen, die nicht mehr auf dem Screen sind
+      AppState.touches.forEach((ring, id) => {
+        if (!currentTouchIds.has(id)) {
+          removeRing(id);
+        }
+      });
+
+      // Timer nur neu starten, wenn es keine reine Bewegung war
+      if (e.type !== 'touchmove') {
+        startIdleTimer();
+      }
+    }
+
+    // Event-Listener anbinden (passive: false ist wichtig für preventDefault)
+    touchArea.addEventListener('touchstart', handleTouch, { passive: false });
+    touchArea.addEventListener('touchmove', handleTouch, { passive: false });
+    touchArea.addEventListener('touchend', handleTouch, { passive: false });
+    touchArea.addEventListener('touchcancel', handleTouch, { passive: false });
+
+    // Verhindert das Kontextmenü (Rechtsklick/Long-Press) im Spielfeld
+    touchArea.addEventListener('contextmenu', e => e.preventDefault());
+
+    /* =========================================
+       4. DREHSCHEIBE APP-LOGIK
+       ========================================= */
+    let wheelRotation = 0;
+    let isSpinning = false;
+    let wheelTimeout;
+    const tabWheel = document.getElementById('tab-wheel');
+    const wheelArrow = document.getElementById('wheel-arrow');
+
+    tabWheel.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // Verhindert auch hier Scrollen/Markieren
+      
+      // Timeout erneuern, damit mehr Schwung hinzugefügt werden kann
+      clearTimeout(wheelTimeout);
+      isSpinning = true;
+
+      // Zufälliger Impuls: 5 bis 10 Umdrehungen + zufälliger Endwinkel
+      const extraSpins = Math.floor(Math.random() * 6) + 5; 
+      const randomAngle = Math.floor(Math.random() * 360);
+      wheelRotation += (extraSpins * 360) + randomAngle;
+
+      wheelArrow.style.transform = `rotate(${wheelRotation}deg)`;
+
+      // Nach 4 Sekunden (passend zur CSS Transition) wieder freigeben
+      wheelTimeout = setTimeout(() => {
+        isSpinning = false;
+      }, 4000);
+    }, { passive: false });
+
+    /* =========================================
+       5. SERVICE WORKER REGISTRIERUNG
+       ========================================= */
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => {
+            console.log('Service Worker registriert', reg.scope);
+            // Erzwingt bei jedem Reload einen Check auf Updates im Service Worker
+            reg.update();
+          })
+          .catch(err => console.error('Service Worker Fehler:', err));
+      });
+    }
+
+    // Initiale Lade-Prozesse
+    window.addEventListener('load', loadSettings);
+  </script>
+</body>
+</html>
