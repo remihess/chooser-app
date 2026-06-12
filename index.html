@@ -60,7 +60,8 @@
     /* --- 3. LAYOUT & NAVIGATION --- */
     nav {
       position: absolute;
-      top: 60px;
+      /* Dynamischer Abstand für die iPhone Notch + 20px Puffer */
+      top: calc(env(safe-area-inset-top, 0px) + 20px);
       left: 0;
       width: 100%;
       display: flex;
@@ -107,7 +108,8 @@
     /* --- 4. EINSTELLUNGEN & MODAL --- */
     .settings-btn {
       position: absolute;
-      top: 20px;
+      /* Auch das Zahnrad braucht den Notch-Abstand */
+      top: calc(env(safe-area-inset-top, 0px) + 20px);
       right: 20px;
       background: transparent;
       border: none;
@@ -222,7 +224,8 @@
     /* --- STATUS OVERLAY --- */
     .status-overlay {
       position: absolute;
-      top: 10px;
+      /* Ordnet das Overlay direkt unter den Navigation-Bubbles an */
+      top: calc(env(safe-area-inset-top, 0px) + 85px);
       left: 50%;
       transform: translateX(-50%);
       pointer-events: none; /* Blockiert keine Finger-Touches! */
