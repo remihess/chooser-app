@@ -1,4 +1,4 @@
-const CACHE_NAME = 'chooser-pwa-v1';
+const CACHE_NAME = 'chooser-pwa-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

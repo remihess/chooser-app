@@ -2,7 +2,10 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Chooser PWA</title>
   <link rel="manifest" href="manifest.json">
   <style>
@@ -27,12 +30,16 @@
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
     }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background: linear-gradient(var(--bg-direction), var(--bg-color1), var(--bg-color2));
       background-size: 200% 200%;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
       animation: gradientMove 15s ease infinite;
       color: var(--text-main);
       display: flex;
@@ -698,6 +705,11 @@
       // Alle Ringe fangen an zu pulsieren
       AppState.touches.forEach(ring => ring.classList.add('pulse'));
 
+      // Kurze Vibration für den allerersten Puls direkt beim Start
+      if (navigator.vibrate) {
+        navigator.vibrate([50]);
+      }
+
       // Taktung: 1 Mal pro Sekunde für 3 Sekunden
       AppState.pulseInterval = setInterval(() => {
         AppState.pulseCount++;
@@ -705,6 +717,9 @@
         // Nach dem 2. Puls -> Ergebnis (jetzt ein Puls früher)
         if (AppState.pulseCount >= 2) {
           executeSelection();
+        } else {
+          // Kurze Vibration für den zweiten Puls
+          if (navigator.vibrate) navigator.vibrate([50]);
         }
       }, 1000);
     }
@@ -716,7 +731,7 @@
 
       // 1. Vibration auslösen (Hinweis: Safari iOS unterstützt die Vibration API webseitig oft nicht nativ)
       if (navigator.vibrate) {
-        navigator.vibrate(400); 
+        navigator.vibrate([400]); 
       }
 
       const touchIds = Array.from(AppState.touches.keys());
@@ -788,6 +803,12 @@
     // Zentrale Funktion zum Verarbeiten aller Touch-Events
     function handleTouch(e) {
       e.preventDefault(); // Verhindert native Gesten wie Swipe-to-back
+
+      // "Weckt" die Vibrations-API direkt beim echten Finger-Tippen auf, 
+      // um die Sicherheits-Sperre des Browsers für den späteren Timer zu umgehen.
+      if (e.type === 'touchstart' && navigator.vibrate) {
+        navigator.vibrate([1]); 
+      }
 
       const currentTouches = e.touches;
 
