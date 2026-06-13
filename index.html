@@ -739,8 +739,12 @@
 
       const touchIds = Array.from(AppState.touches.keys());
       
-      // 2. Array mischen
-      const shuffled = [...touchIds].sort(() => 0.5 - Math.random());
+      // 2. Array fair mischen (Fisher-Yates Shuffle)
+      const shuffled = [...touchIds];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
       
       if (AppState.mode === 'single') {
         const maxWinners = Math.min(AppState.winnersCount, touchIds.length);

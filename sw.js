@@ -1,10 +1,10 @@
-const CACHE_NAME = 'chooser-pwa-v6';
+const CACHE_NAME = 'chooser-pwa-v7';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
   './icon-512.png',
-  '/icon-192.png',
+  './icon-192.png',
 ];
 
 // Install-Event: Speichert alle Core-Dateien im Cache
